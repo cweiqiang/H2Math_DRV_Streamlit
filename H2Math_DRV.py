@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 st.title ('Discrete Random Variables - Visualisation and Analysis')
 st.markdown( 'This web application allows you to key in the *probability density function* (p.d.f) of any *discrete random variable* (d.r.v) $X$, for instance:') 
 
-df1 = pd.DataFrame({'x':[1, 2, 3], 'P(X=x)':[2/8, 3/8, 3/8]})
+df1 = pd.DataFrame({'x':[1, 2], 'P(X=x)':[1/2, 1/2]})
 st.write(df1.T.to_html(index=True,header=False), unsafe_allow_html=True)
 st.markdown('You will then be automatically generated a statistical dashboard for visualisation and analysis!')
 
