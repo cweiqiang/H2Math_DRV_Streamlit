@@ -5,12 +5,14 @@ import sympy
 from sympy import sin, cos, tan, exp, log, symbols, lambdify, sympify, Float
 from fractions import Fraction
 import matplotlib.pyplot as plt
+import scipy.stats
+from scipy.stats import binom
 
 ## Section 0
 st.title ('Discrete Random Variables - Visualisation and Analysis')
 st.markdown( 'This web application allows you to key in the *probability density function* (p.d.f) of any *discrete random variable* (d.r.v) $X$, for instance:') 
 
-df1 = pd.DataFrame({'x':[1, 2], 'P(X=x)':[1/2, 1/2]})
+df1 = pd.DataFrame({'x':[1, 2, 3], 'P(X=x)':[1/4, 1/2, 1/4]})
 st.write(df1.T.to_html(index=True,header=False), unsafe_allow_html=True)
 st.markdown('You will then be automatically generated a statistical dashboard for visualisation and analysis!')
 
@@ -22,34 +24,54 @@ latext = r'''
 - *Expectation* of $X$: $\mu=E(X)=\sum_{x} xP(X=x)$
 - *Variance* of $X$: $\sigma^{2}=Var(X)=E\left[ (X-\mu)^{2} \right]$, where $\sigma$ is the standard deviation (S.D.)
 - *Mode* of $X$: the integer $r$ for which $P(X=r)$ is the largest
-- *Median* of $X$: the largest integer $Q_{2}$ for which $F(Q_{2})\leq 0.5$ 
-- *1st and 3rd Quartiles*: largest integers $Q_{1},Q_{3}$ such that $F(Q_{1})\leq 0.25$ and $F(Q_{3})\leq 0.75$
+- *Median* of $X$: the smallest integer $Q_{2}$ for which $F(Q_{2})\geq 0.5$ 
+- *1st and 3rd Quartiles*: smallest integers $Q_{1},Q_{3}$ such that $F(Q_{1})\geq 0.25$ and $F(Q_{3})\geq 0.75$
 - *Interquartile Range* (IQR): $IQR=Q_{3}-Q_{1}$, and is also used as a measure for the spread of values, similar to  standard deviation.
 '''
+# See definition of Quantile in R: https://stat.ethz.ch/R-manual/R-devel/library/stats/html/Binomial.html
 st.write(latext)
 st.markdown('You can also apply any arbitary function $g$ on $X$ to get another d.r.v. to experiment.')
 st.markdown('**Scroll down and have fun exploring**!')
+
+## Optional Section
+st.header("[Optional] Generating the p.d.f. of a binomial distribution $B(n,q)$")
+latext_opt1 = r'''
+Adjust $n,q$ if you wish to find the p.d.f of a binomial distribution $X$~ $B(n,q)$ for input in Section 1.
+$P(X=x)= {n \choose x} q^{x} (1-q)^{n-x}$, where ${n \choose x}=\frac{n!}{x! (n-x)!}$, $x=0,1,\ldots,n$.
+'''
+st.write(latext_opt1)
+
+n=st.number_input('Select a integer for n:', 2, 30)
+q=st.slider('Adjust for the required probability q', 0.01, 0.99)
+latext_opt2 = r'''
+List of $x$ and $p$ for input in Section 1 (you may copy and paste from here the values of $x$, $p$ and **adding commas ","**).
+'''
+st.write(latext_opt2)
+df0=pd.DataFrame({'x': np.arange(int(n+1)), 'p=P(X=x)': binom.pmf(np.arange(n+1), n, q)}, columns=['x', 'p=P(X=x)'])
+st.write(df0.T.to_html(index=True,header=False), unsafe_allow_html=True)
 
 ## Section 1
 st.header("Section 1: Input values of $x, p$ for D.R.V.")
 raw_input = st.text_input("Please key in all possible values for x:")
    # Validation process 
 if  len (raw_input) < 1 :
-    st.warning ('The possible values for x keyed in must be space-separated, e.g. 1 2 3')
+    st.warning('The possible values for x keyed in must be comma separated, e.g. 1, 2, 3')
     # Stop processing if the conditions are not met
-    st.stop ()
-str_arr = raw_input.split(' ')
-X = np.array([int(num) for num in str_arr])
+    st.stop()
+str_arr=[s.strip() for s in raw_input.split(',')]
+# str_arr = raw_input.split(' ').split(',')
+X = np.array([float(num) for num in str_arr])
 st.write("The input list of values for x is:")
 df2 = pd.DataFrame(X, columns=['x'])
 st.write(df2.T.to_html(index=True,header=False), unsafe_allow_html=True)
 
 prob_input=st.text_input("Input the probabilities values for p=P(X=x):")
-str_arr2 = prob_input.split(' ') #str_arr2 is a Python list
+# str_arr2 = prob_input.split(' ').split(',') #str_arr2 is a Python list
+str_arr2=[pr.strip() for pr in prob_input.split(',')]
 if len(str_arr2) != len(X) or len(str_arr2) < 1:
     st.warning ('Ensure the number of probability values p is equal to the number of input values for x above!')
-    st.warning ('The probabilities values keyed in for p must be space-separated, e.g. 1/4 1/2 1/4')
-    st.warning ('The probabilities values must be in fractional form or decimal form, e.g. 1/4 1/2 1/4 or 0.25 0.5 0.25 or 1/4 0.5 1/4')
+    st.warning ('The probabilities values keyed in for p must be comma separated, e.g. 1/4, 1/2, 1/4 or 0.25, 0.5, 0.25')
+    st.warning ('The probabilities values must be in fractional form or decimal form, e.g. 1/4, 0.5, 1/4')
     # Stop processing if the conditions are not met
     st.stop()
 
@@ -62,12 +84,13 @@ if str_arr2:
         if sympify(num.is_Rational):
             p.append(float(Fraction(num)))
 p=np.array(p)
-epsilon=1e-7
-if np.abs(1-np.sum(p))>epsilon:
-    st.warning ('The probabilities values should add up to 1 with error less than $10^{-7}$, please check and re-enter the values for p above')
+eps=1e-5
+epsilon=1e-10
+if np.abs(1-np.sum(p))>eps:
+    st.warning ('The probabilities values should add up to 1 with error less than $10^{-5}$, please check and re-enter the values for p above')
     st.stop()
 # st.write(p)
-df3=pd.DataFrame({'x': X, 'P(X=x)': p}, columns=['x', 'P(X=x)'])
+df3=pd.DataFrame({'x': X, 'P(X=x)': p, 'P(X <= x)':np.cumsum(p)}, columns=['x', 'P(X=x)', 'P(X <= x)'])
 st.write(df3.T.to_html(index=True,header=False), unsafe_allow_html=True)
 
 ## Section 2: Data Visualisation and Analysis
@@ -82,14 +105,14 @@ mode_index=np.argmax(p)
 Mode=X[mode_index]
 
 # Median (Q2)
-median_index=np.argmax(np.reciprocal(0.5-np.cumsum(p)+epsilon))
+median_index=np.argmax(np.reciprocal(np.cumsum(p)-0.5+epsilon))
 Median=X[median_index]
 
 # Quartile1 (Q1)
-Q1_index=np.argmax(np.reciprocal(0.25-np.cumsum(p)+epsilon))
+Q1_index=np.argmax(np.reciprocal(np.cumsum(p)-0.25+epsilon))
 Quartile1=X[Q1_index]
 # Quartile3 (Q3)
-Q3_index=np.argmax(np.reciprocal(0.75-np.cumsum(p)+epsilon))
+Q3_index=np.argmax(np.reciprocal(np.cumsum(p)-0.75+epsilon))
 Quartile3=X[Q3_index]
 IQR=Quartile3-Quartile1
 
